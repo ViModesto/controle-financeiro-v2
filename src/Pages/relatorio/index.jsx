@@ -4,6 +4,46 @@ import GlobalStyle from "../../styles/global";
 import { supabase } from "../../supabaseClient";
 import { Input, Label } from "./styles";
 
+// const ApiService = {
+//   async getTransactions(filters = {}) {
+//     try {
+//       let query = supabase.from("transactions").select("*");
+
+//       if (filters.user_id) query = query.eq("user_id", filters.user_id);
+//       if (filters.type) query = query.eq("type", filters.type);
+//       if (filters.status) query = query.eq("status", filters.status);
+//       if (filters.start_date) query = query.gte("data", filters.start_date);
+//       if (filters.end_date) query = query.lte("data", filters.end_date);
+//       if (filters.include_transfers === false)
+//         query = query.eq("is_transfer", false);
+
+//       // Filtro de data (período)
+//       if (filters.start_date && filters.end_date) {
+//         query = query
+//           .gte("data", filters.start_date)
+//           .lte("data", filters.end_date);
+//       } else if (filters.start_date) {
+//         query = query.gte("data", filters.start_date);
+//       } else if (filters.end_date) {
+//         query = query.lte("data", filters.end_date);
+//       }
+
+//       const { data: transactions, error } = await query;
+
+//       if (error) {
+//         throw new Error(`Erro ao buscar transações: ${error.message}`);
+//       }
+
+//       console.log(transactions, "transactions");
+
+//       return transactions;
+//     } catch (error) {
+//       console.error("Erro na API:", error);
+//       throw error;
+//     }
+//   },
+// };
+
 const ApiService = {
   async getTransactions(filters = {}) {
     try {
@@ -12,10 +52,19 @@ const ApiService = {
       if (filters.user_id) query = query.eq("user_id", filters.user_id);
       if (filters.type) query = query.eq("type", filters.type);
       if (filters.status) query = query.eq("status", filters.status);
-      if (filters.start_date) query = query.gte("data", filters.start_date);
-      if (filters.end_date) query = query.lte("data", filters.end_date);
       if (filters.include_transfers === false)
         query = query.eq("is_transfer", false);
+
+      // ✅ Filtro de data (aplicado corretamente e apenas uma vez)
+      if (filters.start_date && filters.end_date) {
+        query = query
+          .gte("data", filters.start_date)
+          .lte("data", filters.end_date);
+      } else if (filters.start_date) {
+        query = query.gte("data", filters.start_date);
+      } else if (filters.end_date) {
+        query = query.lte("data", filters.end_date);
+      }
 
       const { data: transactions, error } = await query;
 
