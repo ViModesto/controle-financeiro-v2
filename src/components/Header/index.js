@@ -36,8 +36,11 @@ const Header = ({ user, onLogout }) => {
         }}
       >
         <div>
-          <h2 style={{ margin: 0, color: "#fff" }}>
+          {/* <h2 style={{ margin: 0, color: "#fff" }}>
             Bem-vindo, {user?.nome || user?.email || "Usuário"}!
+          </h2> */}
+          <h2 style={{ margin: 0, color: "#fff" }}>
+            Bem-vindo, {user?.nome?.trim() ? user.nome : "Administrador"}!
           </h2>
         </div>
 
