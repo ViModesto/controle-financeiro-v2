@@ -52,19 +52,12 @@ const ApiService = {
       if (filters.user_id) query = query.eq("user_id", filters.user_id);
       if (filters.type) query = query.eq("type", filters.type);
       if (filters.status) query = query.eq("status", filters.status);
+      if (filters.start_date)
+        query = query.gte("created_at", filters.start_date);
+      if (filters.end_date) query = query.lte("created_at", filters.end_date);
+
       if (filters.include_transfers === false)
         query = query.eq("is_transfer", false);
-
-      // ✅ Filtro de data (aplicado corretamente e apenas uma vez)
-      if (filters.start_date && filters.end_date) {
-        query = query
-          .gte("data", filters.start_date)
-          .lte("data", filters.end_date);
-      } else if (filters.start_date) {
-        query = query.gte("data", filters.start_date);
-      } else if (filters.end_date) {
-        query = query.lte("data", filters.end_date);
-      }
 
       const { data: transactions, error } = await query;
 
@@ -73,7 +66,7 @@ const ApiService = {
       }
 
       console.log(transactions, "transactions");
-
+      console.log(filters, "filters");
       return transactions;
     } catch (error) {
       console.error("Erro na API:", error);
@@ -82,7 +75,44 @@ const ApiService = {
   },
 };
 
+// Exemplo de uso:
+// const transactions = await ApiService.getTransactions({
+//   user_id: 123,
+//   start_date: '2024-01-01',
+//   end_date: '2024-12-31',
+//   status: 'completed'
+// });
+
 // Componente Sidebar
+
+const parseDate = (dateString) => {
+  if (!dateString || typeof dateString !== "string") return null;
+
+  const clean = dateString.trim();
+
+  const regex = /^\d{2}\/\d{2}\/\d{4}$/;
+  if (!regex.test(clean)) {
+    return null;
+  }
+
+  const [dayStr, monthStr, yearStr] = clean.split("/");
+
+  const day = parseInt(dayStr, 10);
+  const month = parseInt(monthStr, 10);
+  const year = parseInt(yearStr, 10);
+
+  const date = new Date(year, month - 1, day);
+
+  if (
+    date.getDate() !== day ||
+    date.getMonth() !== month - 1 ||
+    date.getFullYear() !== year
+  ) {
+    return null;
+  }
+
+  return date;
+};
 const Sidebar = ({
   reportType,
   setReportType,
@@ -115,35 +145,6 @@ const Sidebar = ({
         8
       )}`;
     }
-  };
-
-  const parseDate = (dateString) => {
-    if (!dateString || typeof dateString !== "string") return null;
-
-    const clean = dateString.trim();
-
-    const regex = /^\d{2}\/\d{2}\/\d{4}$/;
-    if (!regex.test(clean)) {
-      return null;
-    }
-
-    const [dayStr, monthStr, yearStr] = clean.split("/");
-
-    const day = parseInt(dayStr, 10);
-    const month = parseInt(monthStr, 10);
-    const year = parseInt(yearStr, 10);
-
-    const date = new Date(year, month - 1, day);
-
-    if (
-      date.getDate() !== day ||
-      date.getMonth() !== month - 1 ||
-      date.getFullYear() !== year
-    ) {
-      return null;
-    }
-
-    return date;
   };
 
   const handleGenerateReport = () => {
@@ -253,20 +254,6 @@ const Sidebar = ({
         />
       </div>
 
-      {/* <div
-        style={{ marginBottom: "16px", display: "flex", alignItems: "center" }}
-      >
-        <input
-          type="checkbox"
-          checked={includeTransfers}
-          onChange={(e) => setIncludeTransfers(e.target.checked)}
-          style={{ marginRight: "8px" }}
-        />
-        <label style={{ fontSize: "14px", margin: 0 }}>
-          Incluir transferências no relatório
-        </label>
-      </div> */}
-
       <button
         style={buttonStyle}
         onClick={() => {
@@ -287,10 +274,94 @@ const ReportTable = ({ reportType, startDate, endDate }) => {
     situation: "",
   });
 
+  // useEffect(() => {
+  //   // const fetchTransactions = async () => {
+  //   //   try {
+  //   //     const transactions = await ApiService.getTransactions();
+  //   //     let periodText = "";
+  //   //     if (startDate && endDate) {
+  //   //       periodText = `${startDate} - ${endDate}`;
+  //   //     } else if (startDate) {
+  //   //       periodText = `A partir de ${startDate}`;
+  //   //     } else if (endDate) {
+  //   //       periodText = `Até ${endDate}`;
+  //   //     } else {
+  //   //       periodText = "Todos os períodos";
+  //   //     }
+
+  //   //     setReportData({
+  //   //       transactions,
+  //   //       period: periodText,
+  //   //     });
+  //   //   } catch (error) {
+  //   //     console.error("Erro ao buscar transações:", error);
+  //   //   }
+  //   // };
+  //   const fetchTransactions = async () => {
+  //     try {
+  //       const filters = {
+  //         start_date: startDate || null,
+  //         end_date: endDate || null,
+  //       };
+
+  //       const transactions = await ApiService.getTransactions(filters);
+
+  //       let periodText = "";
+  //       if (startDate && endDate) {
+  //         periodText = `${startDate} - ${endDate}`;
+  //       } else if (startDate) {
+  //         periodText = `A partir de ${startDate}`;
+  //       } else if (endDate) {
+  //         periodText = `Até ${endDate}`;
+  //       } else {
+  //         periodText = "Todos os períodos";
+  //       }
+
+  //       setReportData({
+  //         transactions,
+  //         period: periodText,
+  //       });
+  //     } catch (error) {
+  //       console.error("Erro ao buscar transações:", error);
+  //     }
+  //   };
+
+  //   fetchTransactions();
+  // }, [startDate, endDate]);
+
   useEffect(() => {
+    const formatDateForSupabase = (dateString) => {
+      const parsedDate = parseDate(dateString);
+      if (!parsedDate) return null;
+
+      const year = parsedDate.getFullYear();
+      const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
+      const day = String(parsedDate.getDate()).padStart(2, "0");
+
+      return `${year}-${month}-${day}`;
+    };
+
     const fetchTransactions = async () => {
       try {
-        const transactions = await ApiService.getTransactions();
+        const formattedStartDate = formatDateForSupabase(startDate);
+        const formattedEndDate = formatDateForSupabase(endDate);
+
+        // Se o usuário digitou uma data inválida e mesmo assim o useEffect rodou... já barra logo:
+        if (
+          (startDate && !formattedStartDate) ||
+          (endDate && !formattedEndDate)
+        ) {
+          console.warn("Data inválida! Não buscando transações...");
+          return;
+        }
+
+        const filters = {
+          start_date: formattedStartDate,
+          end_date: formattedEndDate,
+        };
+
+        const transactions = await ApiService.getTransactions(filters);
+
         let periodText = "";
         if (startDate && endDate) {
           periodText = `${startDate} - ${endDate}`;
